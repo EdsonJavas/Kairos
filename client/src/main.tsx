@@ -1,9 +1,9 @@
 import { trpc } from "@/lib/trpc";
+import { createMockTrpcLink } from "@/lib/mockTrpcLink";
 import { UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { httpBatchLink, TRPCClientError } from "@trpc/client";
+import { TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
-import superjson from "superjson";
 import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
@@ -14,9 +14,13 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
   if (typeof window === "undefined") return;
 
-  const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
+  const isUnauthorized =
+    error.message === UNAUTHED_ERR_MSG ||
+    (error.data as { code?: string } | undefined)?.code === "UNAUTHORIZED";
 
   if (!isUnauthorized) return;
+  if (window.location.pathname === getLoginUrl()) return;
+  if (window.location.pathname === "/") return;
 
   window.location.href = getLoginUrl();
 };
@@ -37,19 +41,11 @@ queryClient.getMutationCache().subscribe(event => {
   }
 });
 
+// Em vez de fazer requisição HTTP para /api/trpc, usamos um link em memória
+// que despacha cada operação para o mock backend client-side (localStorage).
+// Resultado: app funciona em produção sem backend ativo.
 const trpcClient = trpc.createClient({
-  links: [
-    httpBatchLink({
-      url: "/api/trpc",
-      transformer: superjson,
-      fetch(input, init) {
-        return globalThis.fetch(input, {
-          ...(init ?? {}),
-          credentials: "include",
-        });
-      },
-    }),
-  ],
+  links: [createMockTrpcLink()],
 });
 
 createRoot(document.getElementById("root")!).render(

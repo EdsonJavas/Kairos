@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, BookOpen, GraduationCap, Lock, Mail, Users2 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { loginWithCredentials } from "@/lib/mockBackend";
+import { trpc } from "@/lib/trpc";
 
 type DemoAccount = {
   label: string;
@@ -46,6 +48,7 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
 export default function Login() {
   const [, setLocation] = useLocation();
   const { isAuthenticated, loading } = useAuth();
+  const utils = trpc.useUtils();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -68,30 +71,30 @@ export default function Login() {
     setSubmitting(true);
     setError("");
 
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email: emailVal.trim(), password: passwordVal }),
-      });
+    // Login 100% client-side: valida contra credenciais hardcoded e
+    // persiste o usuário em localStorage via mockBackend.
+    const result = loginWithCredentials(emailVal, passwordVal);
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(
-          (data as { error?: string }).error ??
-            "Credenciais inválidas. Verifique os dados e tente novamente.",
-        );
-        return;
-      }
-
-      window.location.href = "/app";
-    } catch {
-      setError("Não foi possível conectar ao servidor. Tente novamente.");
-    } finally {
+    if (!result.ok) {
+      setError(result.error);
       setSubmitting(false);
       setActiveCard(null);
+      return;
     }
+
+    try {
+      // Atualiza imediatamente o cache do auth.me com o user logado para que
+      // a navegação subsequente já encontre a sessão sem refetch.
+      utils.auth.me.setData(undefined, result.user);
+      await utils.auth.me.invalidate();
+    } catch {
+      /* invalidate é best-effort */
+    }
+
+    // Pequeno delay pra dar tempo do estado propagar antes de navegar
+    window.setTimeout(() => {
+      window.location.href = "/app";
+    }, 60);
   };
 
   const handleSubmit = () => doLogin(email, password);
