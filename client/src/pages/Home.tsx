@@ -378,7 +378,7 @@ export default function Home() {
                   Operacional
                 </span>
                 <span className="text-white/35">·</span>
-                <span className="capitalize text-white/55">{dateLong}</span>
+                <span className="text-white/55">{capitalizeFirst(dateLong)}</span>
                 {isAuthenticated ? (
                   <>
                     <span className="text-white/35">·</span>
@@ -731,6 +731,11 @@ function greetingFor(hour: number) {
   return "Boa noite";
 }
 
+function capitalizeFirst(text: string) {
+  if (!text) return text;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 function countdownLabel(target: number, reference: number) {
   const diff = target - reference;
   if (diff <= 0) return "Disponível agora";
@@ -819,14 +824,14 @@ function HeroPreviewCard({ now }: { now: Date }) {
       {/* Header do card */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-12 w-12 flex-col items-center justify-center rounded-xl border border-amber-300/30 bg-gradient-to-b from-amber-300/15 to-amber-300/[0.04]">
-            <span className="text-[8px] font-bold uppercase tracking-[0.32em] text-amber-300/85">
+          <div className="flex h-14 w-14 flex-col items-center justify-center rounded-xl border border-amber-300/30 bg-gradient-to-b from-amber-300/15 to-amber-300/[0.04] px-1">
+            <span className="text-[8px] font-bold uppercase tracking-[0.14em] text-amber-300/85">
               {weekdayLabel}
             </span>
             <span className="font-heading text-base font-bold tabular-nums leading-none text-white">
               {dateNum}
             </span>
-            <span className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.24em] text-white/55">
+            <span className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-white/55">
               {monthLabel}
             </span>
           </div>
@@ -1031,8 +1036,8 @@ function HeroAuthenticatedCard({
           <p className="mt-2 truncate text-sm font-semibold text-white transition-colors group-hover/next:text-amber-200">
             {next.title}
           </p>
-          <p className="mt-0.5 text-[11px] capitalize text-white/45">
-            {formatEventDateShort(next.startsAt, next.allDay)}
+          <p className="mt-0.5 text-[11px] text-white/45">
+            {capitalizeFirst(formatEventDateShort(next.startsAt, next.allDay))}
           </p>
         </button>
       ) : (

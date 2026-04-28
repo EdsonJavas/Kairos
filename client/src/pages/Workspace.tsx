@@ -1386,14 +1386,14 @@ function AgendaEventCard({
               : "border-white/10 from-white/[0.06] to-white/[0.02]",
           )}
         >
-          <span className={cn("text-[9px] font-bold uppercase tracking-[0.24em]", isWeekend ? "text-amber-300/70" : "text-white/45")}>
-            {format(startDate, "EEE", { locale: ptBR })}
+          <span className={cn("text-[9px] font-bold uppercase tracking-[0.16em]", isWeekend ? "text-amber-300/70" : "text-white/45")}>
+            {shortWeekdayPt(startDate)}
           </span>
           <span className="font-heading text-2xl font-bold tabular-nums leading-none text-white">
             {format(startDate, "d")}
           </span>
-          <span className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.24em] text-white/45">
-            {format(startDate, "MMM", { locale: ptBR })}
+          <span className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-white/45">
+            {shortMonthPt(startDate)}
           </span>
           {!event.allDay ? (
             <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-white/[0.08] px-1.5 py-0.5 font-heading text-[9px] font-bold tabular-nums text-white/75">
@@ -1451,9 +1451,9 @@ function AgendaEventCard({
           ) : null}
 
           <div className="mt-3 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[11px] text-white/40">
-            <span className="inline-flex items-center gap-1 capitalize">
+            <span className="inline-flex items-center gap-1">
               <CalendarDays className="h-3 w-3" />
-              {format(startDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
+              {capitalizeFirst(format(startDate, "EEEE, d 'de' MMMM", { locale: ptBR }))}
             </span>
             {!event.allDay ? (
               <span className="inline-flex items-center gap-1 tabular-nums">
@@ -2752,15 +2752,15 @@ function TodayLane({
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             {/* Date tile */}
-            <div className="relative flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl border border-amber-300/30 bg-gradient-to-b from-amber-300/15 to-amber-300/[0.04] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06),0_8px_22px_-10px_rgba(244,197,66,0.45)]">
-              <span className="text-[9px] font-bold uppercase tracking-[0.32em] text-amber-300/85">
-                {format(today, "EEE", { locale: ptBR })}
+            <div className="relative flex h-[72px] w-[72px] shrink-0 flex-col items-center justify-center rounded-2xl border border-amber-300/30 bg-gradient-to-b from-amber-300/15 to-amber-300/[0.04] px-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06),0_8px_22px_-10px_rgba(244,197,66,0.45)]">
+              <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-amber-300/85">
+                {shortWeekdayPt(today)}
               </span>
               <span className="font-heading text-2xl font-bold tabular-nums leading-none text-white">
                 {format(today, "d")}
               </span>
-              <span className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.24em] text-white/55">
-                {format(today, "MMM", { locale: ptBR })}
+              <span className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-white/55">
+                {shortMonthPt(today)}
               </span>
               <span className="absolute -top-1.5 right-1.5 flex h-3 w-3">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-300 opacity-70" />
@@ -2773,7 +2773,7 @@ function TodayLane({
                 <Sunrise className="h-3 w-3" />
                 Hoje · {greeting}
               </p>
-              <h3 className="mt-1 text-xl font-semibold capitalize tracking-tight text-white md:text-2xl">
+              <h3 className="mt-1 truncate text-xl font-semibold tracking-tight text-white md:text-2xl">
                 {todayCount === 0
                   ? "Sem compromissos"
                   : `${todayCount} compromisso${todayCount === 1 ? "" : "s"}`}
@@ -2787,8 +2787,8 @@ function TodayLane({
                   {dayMood.label}
                 </span>
                 <span className="text-white/35">·</span>
-                <span className="capitalize text-white/55">
-                  {format(today, "EEEE, d 'de' MMMM", { locale: ptBR })}
+                <span className="text-white/55">
+                  {capitalizeFirst(format(today, "EEEE, d 'de' MMMM", { locale: ptBR }))}
                 </span>
               </div>
             </div>
@@ -2932,7 +2932,7 @@ function TodayLane({
             <h4 className="mt-1 text-sm font-semibold tracking-tight text-white">
               <span className="font-heading tabular-nums text-amber-300">{weekTotal}</span>{" "}
               <span className="text-white/65">evento{weekTotal === 1 ? "" : "s"}</span>
-              <span className="ml-1.5 capitalize text-white/45">
+              <span className="ml-1.5 text-white/45">
                 · {format(weekStart, "d MMM", { locale: ptBR })} a {format(addDays(weekStart, 6), "d MMM", { locale: ptBR })}
               </span>
             </h4>
@@ -3054,7 +3054,11 @@ function StackedDayBar({
   ].filter(s => s.count > 0);
 
   const total = breakdown.total;
-  const heightPct = total > 0 ? Math.max(20, (total / maxPerDay) * 100) : 0;
+  // Escala absoluta com baseline confortável: 1 evento ~32%, escala até ~88% (5 eventos),
+  // depois normaliza pelo pico semanal pra dar respiro mesmo quando todos têm o mesmo número.
+  const baseHeight = total > 0 ? Math.min(88, 32 + (total - 1) * 14) : 0;
+  const relativeBoost = total > 0 && maxPerDay > 1 ? Math.min(12, (total / maxPerDay) * 12) : 0;
+  const heightPct = total > 0 ? Math.min(92, baseHeight + relativeBoost) : 0;
   const dow = day.getDay();
   const isWeekend = dow === 0 || dow === 6;
 
@@ -4189,14 +4193,14 @@ function DaySpotlight({
                   : "border-white/10 from-white/[0.06] to-white/[0.02]",
               )}
             >
-              <span className="text-[9px] font-bold uppercase tracking-[0.32em] text-white/40">
-                {format(selectedDate, "EEE", { locale: ptBR })}
+              <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/40">
+                {shortWeekdayPt(selectedDate)}
               </span>
               <span className="font-heading text-4xl font-bold tabular-nums leading-none text-white">
                 {format(selectedDate, "d")}
               </span>
-              <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">
-                {format(selectedDate, "MMM yyyy", { locale: ptBR })}
+              <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">
+                {shortMonthPt(selectedDate)} {format(selectedDate, "yyyy")}
               </span>
               {isTodaySel ? (
                 <span className="absolute -top-1.5 right-2 flex h-3 w-3">
@@ -4216,8 +4220,8 @@ function DaySpotlight({
                 {relative}
                 {isWeekend ? " · Fim de semana" : ""}
               </p>
-              <h3 className="mt-1.5 text-2xl font-semibold capitalize tracking-tight text-white md:text-3xl">
-                {format(selectedDate, "EEEE", { locale: ptBR })}
+              <h3 className="mt-1.5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
+                {capitalizeFirst(format(selectedDate, "EEEE", { locale: ptBR }))}
               </h3>
               <p className="mt-1 text-sm text-white/50">
                 {format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: ptBR })}
@@ -5495,16 +5499,16 @@ function EventDetailsDialog({
               }}
             >
               <span
-                className="text-[9px] font-bold uppercase tracking-[0.32em]"
+                className="text-[9px] font-bold uppercase tracking-[0.18em]"
                 style={{ color: event.categoryColor }}
               >
-                {format(startDate, "EEE", { locale: ptBR })}
+                {shortWeekdayPt(startDate)}
               </span>
               <span className="font-heading text-4xl font-bold tabular-nums leading-none text-white">
                 {format(startDate, "d")}
               </span>
-              <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.24em] text-white/55">
-                {format(startDate, "MMM yyyy", { locale: ptBR })}
+              <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">
+                {shortMonthPt(startDate)} {format(startDate, "yyyy")}
               </span>
               {!event.allDay ? (
                 <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-slate-950/60 px-2 py-0.5 font-heading text-[10px] font-bold tabular-nums text-white">
@@ -5573,9 +5577,9 @@ function EventDetailsDialog({
 
               {/* Date long-form + countdown */}
               <div className="mt-3 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs text-white/55">
-                <span className="inline-flex items-center gap-1.5 capitalize">
+                <span className="inline-flex items-center gap-1.5">
                   <CalendarDays className="h-3 w-3 text-white/40" />
-                  {format(startDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  {capitalizeFirst(format(startDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR }))}
                 </span>
                 {!event.allDay ? (
                   <span className="inline-flex items-center gap-1.5 tabular-nums">
@@ -5993,6 +5997,24 @@ function formatEventDate(timestamp: number, allDay = false) {
     dateStyle: "full",
     timeStyle: allDay ? undefined : "short",
   });
+}
+
+/** Capitaliza só a primeira letra (evita conectores virarem maiúsculos como o `capitalize` CSS faria). */
+function capitalizeFirst(text: string) {
+  if (!text) return text;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Weekday em 3 letras (estável entre versões do date-fns / locales). */
+const SHORT_WEEKDAYS_PT = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"] as const;
+function shortWeekdayPt(date: Date) {
+  return SHORT_WEEKDAYS_PT[date.getDay()];
+}
+
+/** Mês em 3 letras estável. */
+const SHORT_MONTHS_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"] as const;
+function shortMonthPt(date: Date) {
+  return SHORT_MONTHS_PT[date.getMonth()];
 }
 
 function formatNotificationDate(value: Date | string) {
