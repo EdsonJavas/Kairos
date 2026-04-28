@@ -1,0 +1,16 @@
+node_modules
+.manus-logs
+*.test.ts
+__tests__
+test-results
+playwright-report
+.env
+.env.local
+internal-ui-validation-notes.md
+research-unimar-brand.md
+todo.md
+visual-debug-notes.md
+manual_unimar.pdf
+manual_unimar.txt
+patches
+vite.config.ts.bak

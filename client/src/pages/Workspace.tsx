@@ -2690,14 +2690,48 @@ function TodayLane({
   canManage: boolean;
 }) {
   const today = new Date();
+  const hour = today.getHours();
+  const greeting = hour < 5 ? "Boa madrugada" : hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  const eventsPerDay = weekDays.map(day =>
-    weekEvents.filter(e => isSameDay(new Date(e.startsAt), day)).length
-  );
-  const maxPerDay = Math.max(1, ...eventsPerDay);
 
-  const digestItems: Array<{ label: string; value: number; color: string; icon: typeof Sparkles }> = [
+  // Breakdown stacked por dia/categoria
+  type DayBreakdown = { total: number; activity: number; exam: number; assignment: number; notice: number };
+  const breakdownPerDay: DayBreakdown[] = weekDays.map(day => {
+    const dayEvents = weekEvents.filter(e => isSameDay(new Date(e.startsAt), day));
+    return {
+      total: dayEvents.length,
+      activity: dayEvents.filter(e => e.category === "activity").length,
+      exam: dayEvents.filter(e => e.category === "exam").length,
+      assignment: dayEvents.filter(e => e.category === "assignment").length,
+      notice: dayEvents.filter(e => e.category === "notice").length,
+    };
+  });
+  const maxPerDay = Math.max(1, ...breakdownPerDay.map(b => b.total));
+  const weekTotal = weekEvents.length;
+  const urgentToday = todayEvents.filter(e => e.isUrgent).length;
+
+  // Status do dia (mood)
+  const todayCount = todayEvents.length;
+  const dayMood =
+    todayCount === 0
+      ? { label: "Tranquilo", color: "#22C55E", icon: Sparkles }
+      : urgentToday > 0
+      ? { label: "Atenção crítica", color: "#EF4444", icon: ShieldAlert }
+      : todayCount <= 2
+      ? { label: "Confortável", color: "#3ABEFF", icon: Activity }
+      : todayCount <= 4
+      ? { label: "Atarefado", color: "#F97316", icon: Flame }
+      : { label: "Intenso", color: "#9333EA", icon: Zap };
+  const MoodIcon = dayMood.icon;
+
+  const digestItems: Array<{
+    label: string;
+    value: number;
+    color: string;
+    icon: typeof Sparkles;
+  }> = [
     { label: "Atividades", value: weeklyDigest.activity, color: "#3B82F6", icon: BookMarked },
     { label: "Provas", value: weeklyDigest.exam, color: "#EF4444", icon: GraduationCap },
     { label: "Trabalhos", value: weeklyDigest.assignment, color: "#F97316", icon: ClipboardCheck },
@@ -2705,38 +2739,85 @@ function TodayLane({
   ];
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.015] shadow-[0_16px_44px_-16px_rgba(0,0,0,0.55)]">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" />
+    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-white/[0.015] shadow-[0_24px_60px_-24px_rgba(0,0,0,0.6)]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" />
+      <div
+        className="pointer-events-none absolute -right-24 -top-20 h-64 w-64 rounded-full opacity-25 blur-3xl"
+        style={{ background: dayMood.color }}
+      />
+      <div className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-amber-300/8 blur-3xl" />
 
-      {/* Header */}
-      <header className="flex items-center justify-between gap-4 border-b border-white/8 bg-white/[0.02] px-6 py-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-300/20 bg-amber-300/12 text-amber-300 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
-            <CalendarClock className="h-5 w-5" />
+      {/* HEADER PREMIUM */}
+      <header className="relative border-b border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),transparent)] px-6 py-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            {/* Date tile */}
+            <div className="relative flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl border border-amber-300/30 bg-gradient-to-b from-amber-300/15 to-amber-300/[0.04] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06),0_8px_22px_-10px_rgba(244,197,66,0.45)]">
+              <span className="text-[9px] font-bold uppercase tracking-[0.32em] text-amber-300/85">
+                {format(today, "EEE", { locale: ptBR })}
+              </span>
+              <span className="font-heading text-2xl font-bold tabular-nums leading-none text-white">
+                {format(today, "d")}
+              </span>
+              <span className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.24em] text-white/55">
+                {format(today, "MMM", { locale: ptBR })}
+              </span>
+              <span className="absolute -top-1.5 right-1.5 flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-300 opacity-70" />
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-300 ring-2 ring-slate-950" />
+              </span>
+            </div>
+
+            <div className="min-w-0">
+              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.28em] text-amber-300/85">
+                <Sunrise className="h-3 w-3" />
+                Hoje · {greeting}
+              </p>
+              <h3 className="mt-1 text-xl font-semibold capitalize tracking-tight text-white md:text-2xl">
+                {todayCount === 0
+                  ? "Sem compromissos"
+                  : `${todayCount} compromisso${todayCount === 1 ? "" : "s"}`}
+              </h3>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                  style={{ background: `${dayMood.color}22`, color: dayMood.color }}
+                >
+                  <MoodIcon className="h-2.5 w-2.5" />
+                  {dayMood.label}
+                </span>
+                <span className="text-white/35">·</span>
+                <span className="capitalize text-white/55">
+                  {format(today, "EEEE, d 'de' MMMM", { locale: ptBR })}
+                </span>
+              </div>
+            </div>
           </div>
-          <div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-white/45">
-              {format(today, "EEEE, d 'de' MMMM", { locale: ptBR })}
-            </p>
-            <h3 className="mt-0.5 text-base font-semibold tracking-tight text-white">
-              {todayEvents.length === 0
-                ? "Sem compromissos hoje"
-                : `${todayEvents.length} compromisso${todayEvents.length === 1 ? "" : "s"} hoje`}
-            </h3>
+
+          <div className="flex items-center gap-2">
+            {/* Now chip */}
+            <div className="hidden items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 sm:inline-flex">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              </span>
+              <span className="font-heading text-xs font-bold tabular-nums text-white">
+                {format(today, "HH:mm")}
+              </span>
+            </div>
+            <Button
+              type="button"
+              onClick={onGoToCalendar}
+              className="h-9 rounded-full bg-amber-300/10 px-4 text-xs font-bold uppercase tracking-wider text-amber-300 ring-1 ring-amber-300/25 transition-all hover:bg-amber-300/20"
+            >
+              Calendário
+              <ChevronRight className="ml-1 h-3.5 w-3.5" />
+            </Button>
           </div>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="rounded-full border-white/12 bg-white/[0.04] text-xs font-medium text-white hover:bg-white/[0.08] hover:text-white"
-          onClick={onGoToCalendar}
-        >
-          Abrir calendário
-          <ChevronRight className="ml-1 h-3.5 w-3.5" />
-        </Button>
       </header>
 
-      {/* Today list */}
+      {/* TODAY · list ou empty premium */}
       <div className="space-y-2 px-6 pt-5">
         {todayEvents.length ? (
           todayEvents.map(event => (
@@ -2744,21 +2825,31 @@ function TodayLane({
               key={event.id}
               type="button"
               onClick={() => onOpenEvent(event.id)}
-              className="group/item w-full rounded-2xl border border-white/8 bg-white/[0.03] p-4 text-left transition-all hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.06] hover:shadow-[0_10px_32px_-12px_rgba(0,0,0,0.6)]"
+              className="group/item relative w-full overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03] p-4 text-left transition-all hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.06] hover:shadow-[0_12px_28px_-12px_rgba(0,0,0,0.6)]"
             >
+              <div
+                className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-50"
+                style={{ background: `linear-gradient(90deg, transparent, ${event.categoryColor}, transparent)` }}
+              />
               <div className="flex items-center gap-4">
-                <div className="flex flex-col items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center">
+                <div
+                  className="flex flex-col items-center justify-center rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] px-3 py-2 text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+                >
                   {event.allDay ? (
                     <>
-                      <span className="font-heading text-sm font-bold leading-none text-white">DIA</span>
-                      <span className="mt-1 text-[9px] font-medium uppercase tracking-[0.2em] text-white/40">inteiro</span>
+                      <Sunrise className="h-3.5 w-3.5 text-amber-300" />
+                      <span className="mt-1 font-heading text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200">
+                        dia
+                      </span>
                     </>
                   ) : (
                     <>
                       <span className="font-heading text-sm font-bold leading-none tabular-nums text-white">
                         {format(new Date(event.startsAt), "HH:mm")}
                       </span>
-                      <span className="mt-1 text-[9px] font-medium uppercase tracking-[0.2em] text-white/40">hoje</span>
+                      <span className="mt-1 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">
+                        hoje
+                      </span>
                     </>
                   )}
                 </div>
@@ -2766,13 +2857,14 @@ function TodayLane({
                   className="h-12 w-1 self-stretch rounded-full"
                   style={{
                     background: `linear-gradient(180deg, ${event.categoryColor}, ${event.categoryColor}55)`,
-                    opacity: event.isUrgent ? 1 : 0.7,
+                    boxShadow: `0 0 12px ${event.categoryColor}66`,
+                    opacity: event.isUrgent ? 1 : 0.8,
                   }}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span
-                      className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+                      className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
                       style={{ background: `${event.categoryColor}22`, color: event.categoryColor }}
                     >
                       {event.categoryLabel}
@@ -2781,7 +2873,7 @@ function TodayLane({
                       {event.priorityLabel}
                     </span>
                     {event.isUrgent ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-red-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-300">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-red-500/14 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-300">
                         <ShieldAlert className="h-2.5 w-2.5" />
                         Urgente
                       </span>
@@ -2799,107 +2891,280 @@ function TodayLane({
             </button>
           ))
         ) : (
-          <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-6 text-center">
-            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/45">
-              <CalendarCheck2 className="h-4 w-4" />
+          <div className="relative overflow-hidden rounded-2xl border border-dashed border-white/10 bg-gradient-to-br from-white/[0.02] to-transparent p-6 text-center">
+            <div
+              className="pointer-events-none absolute -top-12 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full opacity-30 blur-2xl"
+              style={{ background: dayMood.color }}
+            />
+            <div className="relative">
+              <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]" style={{ color: dayMood.color }}>
+                <MoodIcon className="h-5 w-5" />
+              </div>
+              <p className="mt-3 text-sm font-semibold text-white">Dia tranquilo · sem compromissos</p>
+              <p className="mt-1 text-xs text-white/45">
+                {canManage
+                  ? "Aproveite para publicar novos eventos para sua turma."
+                  : "Aproveite para revisar conteúdo da semana."}
+              </p>
+              <div className="mt-4 inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onGoToCalendar}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-300 transition-all hover:bg-amber-300/20"
+                >
+                  {canManage ? <Plus className="h-3 w-3" /> : <CalendarRange className="h-3 w-3" />}
+                  {canManage ? "Criar evento" : "Ver semana"}
+                </button>
+              </div>
             </div>
-            <p className="mt-3 text-sm font-medium text-white/65">Nenhum compromisso para hoje.</p>
-            <p className="mt-1 text-xs text-white/40">
-              {canManage
-                ? "Aproveite para publicar novos eventos para sua turma."
-                : "Aproveite o tempo livre para revisar conteúdo da semana."}
-            </p>
           </div>
         )}
       </div>
 
-      {/* Weekly heatmap */}
-      <div className="mt-6 border-t border-white/8 px-6 py-5">
+      {/* WEEKLY HEATMAP STACKED · Premium */}
+      <div className="relative mt-6 border-t border-white/8 px-6 py-5">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-white/45">Distribuição semanal</p>
+            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.28em] text-white/45">
+              <Activity className="h-3 w-3" />
+              Distribuição semanal
+            </p>
             <h4 className="mt-1 text-sm font-semibold tracking-tight text-white">
-              {weekEvents.length} evento{weekEvents.length === 1 ? "" : "s"} de {format(weekStart, "d MMM", { locale: ptBR })} a {format(addDays(weekStart, 6), "d MMM", { locale: ptBR })}
+              <span className="font-heading tabular-nums text-amber-300">{weekTotal}</span>{" "}
+              <span className="text-white/65">evento{weekTotal === 1 ? "" : "s"}</span>
+              <span className="ml-1.5 capitalize text-white/45">
+                · {format(weekStart, "d MMM", { locale: ptBR })} a {format(addDays(weekStart, 6), "d MMM", { locale: ptBR })}
+              </span>
             </h4>
+          </div>
+          <div className="hidden items-center gap-2 md:flex">
+            {[
+              { color: "#3B82F6", label: "Ativ" },
+              { color: "#EF4444", label: "Provas" },
+              { color: "#F97316", label: "Trab" },
+              { color: "#22C55E", label: "Avisos" },
+            ].map(legend => (
+              <div key={legend.label} className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-white/35">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: legend.color, boxShadow: `0 0 6px ${legend.color}80` }} />
+                {legend.label}
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-7 gap-1.5">
-          {weekDays.map((day, i) => {
-            const isCurrent = isSameDay(day, today);
-            const count = eventsPerDay[i];
-            const heightPct = count > 0 ? Math.max(18, (count / maxPerDay) * 100) : 0;
-            const dayLabel = format(day, "EEEEEE", { locale: ptBR });
+        <div className="relative mt-4 grid grid-cols-7 gap-1.5">
+          {weekDays.map((day, i) => (
+            <StackedDayBar
+              key={i}
+              day={day}
+              breakdown={breakdownPerDay[i]}
+              maxPerDay={maxPerDay}
+              isCurrent={isSameDay(day, today)}
+              onClick={onGoToCalendar}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* DIGEST · refinado com mini-bars e percentual */}
+      <div className="border-t border-white/8 px-6 py-5">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.28em] text-white/45">
+            <TrendingUp className="h-3 w-3" />
+            Por categoria
+          </p>
+          <span className="text-[10px] font-medium tabular-nums text-white/35">
+            <span className="font-heading text-[12px] font-bold text-white/65">{weekTotal}</span> total
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {digestItems.map(item => {
+            const pct = weekTotal > 0 ? (item.value / weekTotal) * 100 : 0;
             return (
-              <div key={i} className="flex flex-col items-center gap-2">
-                <div className={cn(
-                  "relative flex h-20 w-full items-end overflow-hidden rounded-lg border bg-white/[0.025] transition-colors",
-                  isCurrent ? "border-amber-300/50" : "border-white/8 group-hover:border-white/15",
-                )}>
-                  {count > 0 ? (
-                    <div
-                      className={cn(
-                        "w-full rounded-md transition-all",
-                        isCurrent ? "bg-gradient-to-t from-amber-300 to-amber-200" : "bg-gradient-to-t from-sky-500/70 to-sky-400/40",
-                      )}
-                      style={{ height: `${heightPct}%` }}
-                    />
-                  ) : null}
-                  {count > 0 ? (
+              <div
+                key={item.label}
+                className="group/pill relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-white/[0.01] p-3 transition-all hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]"
+              >
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-50"
+                  style={{ background: `linear-gradient(90deg, transparent, ${item.color}, transparent)` }}
+                />
+                <div
+                  className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full opacity-20 blur-2xl transition-opacity group-hover/pill:opacity-40"
+                  style={{ background: item.color }}
+                />
+                <div className="relative">
+                  <div className="flex items-start justify-between">
                     <span
-                      className={cn(
-                        "absolute inset-x-0 top-1.5 text-center font-heading text-[11px] font-bold tabular-nums",
-                        isCurrent ? "text-slate-950" : "text-white",
-                      )}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10"
+                      style={{ background: `${item.color}1F`, color: item.color }}
                     >
-                      {count}
+                      <item.icon className="h-4 w-4" />
                     </span>
-                  ) : null}
-                  {isCurrent ? (
-                    <span className="absolute inset-x-0 bottom-0 h-px bg-amber-300" />
-                  ) : null}
+                    <span className="font-heading text-2xl font-bold tabular-nums leading-none text-white">
+                      {item.value}
+                    </span>
+                  </div>
+                  <p className="mt-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white/55">
+                    {item.label}
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${pct}%`,
+                          background: `linear-gradient(90deg, ${item.color}AA, ${item.color})`,
+                          boxShadow: pct > 0 ? `0 0 8px ${item.color}66` : "none",
+                        }}
+                      />
+                    </div>
+                    <span className="font-heading text-[10px] font-bold tabular-nums text-white/45">
+                      {Math.round(pct)}%
+                    </span>
+                  </div>
                 </div>
-                <span
-                  className={cn(
-                    "text-[10px] font-medium uppercase tracking-[0.16em]",
-                    isCurrent ? "font-bold text-amber-300" : "text-white/40",
-                  )}
-                >
-                  {dayLabel}
-                </span>
               </div>
             );
           })}
         </div>
       </div>
-
-      {/* Category digest pills */}
-      <div className="border-t border-white/8 px-6 py-4">
-        <div className="flex flex-wrap gap-2">
-          {digestItems.map(item => (
-            <div
-              key={item.label}
-              className="group/pill flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 transition-all hover:border-white/20 hover:bg-white/[0.06]"
-            >
-              <span
-                className="flex h-7 w-7 items-center justify-center rounded-lg"
-                style={{ background: `${item.color}1F`, color: item.color }}
-              >
-                <item.icon className="h-3.5 w-3.5" />
-              </span>
-              <div className="flex flex-col leading-tight">
-                <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/45">
-                  {item.label}
-                </span>
-                <span className="font-heading text-sm font-semibold tabular-nums text-white">
-                  {item.value}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </section>
+  );
+}
+
+function StackedDayBar({
+  day,
+  breakdown,
+  maxPerDay,
+  isCurrent,
+  onClick,
+}: {
+  day: Date;
+  breakdown: { total: number; activity: number; exam: number; assignment: number; notice: number };
+  maxPerDay: number;
+  isCurrent: boolean;
+  onClick?: () => void;
+}) {
+  const segments = [
+    { key: "activity", color: "#3B82F6", count: breakdown.activity, label: "Atividades" },
+    { key: "exam", color: "#EF4444", count: breakdown.exam, label: "Provas" },
+    { key: "assignment", color: "#F97316", count: breakdown.assignment, label: "Trabalhos" },
+    { key: "notice", color: "#22C55E", count: breakdown.notice, label: "Avisos" },
+  ].filter(s => s.count > 0);
+
+  const total = breakdown.total;
+  const heightPct = total > 0 ? Math.max(20, (total / maxPerDay) * 100) : 0;
+  const dow = day.getDay();
+  const isWeekend = dow === 0 || dow === 6;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group/bar flex flex-col items-center gap-2 outline-none"
+    >
+      <div
+        className={cn(
+          "relative flex h-24 w-full items-end overflow-hidden rounded-xl border bg-gradient-to-b from-white/[0.03] to-white/[0.01] transition-all duration-200",
+          isCurrent
+            ? "border-amber-300/45 shadow-[0_0_22px_-8px_rgba(244,197,66,0.55),inset_0_0_0_1px_rgba(244,197,66,0.18)]"
+            : "border-white/8 group-hover/bar:border-white/20 group-hover/bar:shadow-[0_0_18px_-8px_rgba(255,255,255,0.25)]",
+          isWeekend && !isCurrent && "border-amber-300/15",
+        )}
+      >
+        {/* Background grid lines */}
+        <div className="pointer-events-none absolute inset-0 flex flex-col-reverse">
+          <div className="h-1/4 border-t border-white/[0.04]" />
+          <div className="h-1/4 border-t border-white/[0.04]" />
+          <div className="h-1/4 border-t border-white/[0.04]" />
+          <div className="h-1/4" />
+        </div>
+
+        {/* Stacked bar */}
+        {total > 0 ? (
+          <div
+            className="relative z-10 flex w-full flex-col-reverse overflow-hidden rounded-md transition-all duration-300"
+            style={{ height: `${heightPct}%` }}
+          >
+            {segments.map((seg, idx) => {
+              const segPct = (seg.count / total) * 100;
+              const isFirst = idx === 0;
+              const isLast = idx === segments.length - 1;
+              return (
+                <div
+                  key={seg.key}
+                  className="relative w-full"
+                  style={{
+                    height: `${segPct}%`,
+                    background: `linear-gradient(180deg, ${seg.color}, ${seg.color}AA)`,
+                    boxShadow: isFirst ? `0 0 14px ${seg.color}66` : undefined,
+                    borderTop: !isLast ? "1px solid rgba(7,17,31,0.4)" : undefined,
+                  }}
+                />
+              );
+            })}
+          </div>
+        ) : null}
+
+        {/* Total label flutuante */}
+        {total > 0 ? (
+          <span
+            className={cn(
+              "absolute inset-x-0 z-20 text-center font-heading text-[11px] font-bold tabular-nums",
+              "bottom-0",
+            )}
+            style={{
+              transform: `translateY(calc(-${heightPct}% - 4px))`,
+              color: isCurrent ? "#F4C542" : "#FFFFFF",
+              textShadow: "0 0 8px rgba(0,0,0,0.6)",
+            }}
+          >
+            {total}
+          </span>
+        ) : null}
+
+        {/* Tooltip on hover (with breakdown) */}
+        {total > 0 ? (
+          <div className="pointer-events-none absolute -top-14 left-1/2 z-30 w-max -translate-x-1/2 rounded-lg border border-white/10 bg-slate-950/95 px-2.5 py-1.5 opacity-0 shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur transition-opacity group-hover/bar:opacity-100">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white">
+              <span className="capitalize">{format(day, "EEE d MMM", { locale: ptBR })}</span>
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              {segments.map(seg => (
+                <span key={seg.key} className="inline-flex items-center gap-1 text-[10px] text-white/75">
+                  <span className="h-1 w-1 rounded-full" style={{ background: seg.color }} />
+                  <span className="font-heading font-bold tabular-nums">{seg.count}</span>
+                  <span className="text-white/45">{seg.label.toLowerCase()}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Today bottom marker */}
+        {isCurrent ? <span className="absolute inset-x-0 bottom-0 z-20 h-px bg-amber-300" /> : null}
+      </div>
+
+      <div className="flex flex-col items-center gap-0">
+        <span
+          className={cn(
+            "font-heading text-sm font-bold tabular-nums leading-none transition-colors",
+            isCurrent ? "text-amber-300" : "text-white/65 group-hover/bar:text-white",
+          )}
+        >
+          {format(day, "d")}
+        </span>
+        <span
+          className={cn(
+            "mt-1 text-[9px] font-bold uppercase tracking-[0.16em]",
+            isCurrent ? "text-amber-300/85" : isWeekend ? "text-amber-300/45" : "text-white/35",
+          )}
+        >
+          {format(day, "EEEEEE", { locale: ptBR })}
+        </span>
+      </div>
+    </button>
   );
 }
 
