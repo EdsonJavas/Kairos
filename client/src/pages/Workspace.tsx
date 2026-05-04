@@ -66,6 +66,7 @@ import {
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
+import { type AssistantEventDraft, ProfessorAIAssistant } from "@/components/ProfessorAIAssistant";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -449,6 +450,10 @@ export default function Workspace() {
     createEvent.mutate(payload);
   };
 
+  const handleAssistantCreateEvent = async (draft: AssistantEventDraft) => {
+    await createEvent.mutateAsync(draft);
+  };
+
   return (
     <>
       <DashboardLayout
@@ -604,6 +609,12 @@ export default function Workspace() {
         </div>,
         document.body,
       )}
+
+      <ProfessorAIAssistant
+        canManage={canManageEvents && isProfessorExperience}
+        onCreateEvent={handleAssistantCreateEvent}
+        onGoToCalendar={() => setLocation("/calendario")}
+      />
     </>
   );
 }
